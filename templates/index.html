@@ -250,6 +250,8 @@
             color: #007aff;
             text-decoration: none;
             font-weight: 500;
+            display: block;
+            margin: 8px 0;
         }
         
         .message a:hover {
@@ -258,14 +260,9 @@
         
         .message strong {
             display: block;
-            margin-top: 12px;
-            margin-bottom: 8px;
+            margin-top: 16px;
+            margin-bottom: 12px;
             font-weight: 600;
-        }
-        
-        .message a {
-            display: inline-block;
-            margin: 4px 0;
         }
     </style>
 </head>
@@ -405,7 +402,7 @@
                 
                 if (response.ok && data.success) {
                     let messageHtml = `処理が完了しました<br>従業員数: ${data.person_count}名 | 事業所数: ${data.business_count}箇所<br><br>`;
-                    messageHtml += `<strong>全体ファイル</strong><a href="/download/${data.output_file}">${data.output_file}</a><br>`;
+                    messageHtml += `<strong>全体ファイル</strong><a href="/download/${data.output_file}">${data.output_file}</a>`;
                     
                     if (data.business_files && Object.keys(data.business_files).length > 0) {
                         messageHtml += `<strong>事業所別ファイル</strong>`;
