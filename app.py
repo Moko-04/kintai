@@ -5,13 +5,24 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from datetime import datetime, timedelta
 import os
+import sys
 import glob
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-# デプロイ環境では一時ファイル用のディレクトリを使用
-UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '.')
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# exeファイルの場合、実行ファイルのディレクトリを取得
+if getattr(sys, 'frozen', False):
+    # PyInstallerでビルドされた場合
+    base_path = sys._MEIPASS
+    work_dir = os.path.dirname(sys.executable)
+    template_folder = os.path.join(base_path, 'templates')
+    app = Flask(__name__, template_folder=template_folder)
+else:
+    # 通常のPython実行の場合
+    work_dir = os.path.dirname(os.path.abspath(__file__))
+
+app.config['UPLOAD_FOLDER'] = work_dir
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
@@ -478,9 +489,19 @@ def create_business_excel(business_name, persons, output_file):
 @app.route('/')
 def index():
     """メインページ"""
-    # フォルダ内のエクセルファイルを取得
-    excel_files = glob.glob('*.xlsx') + glob.glob('*.xls')
-    excel_files = [f for f in excel_files if not f.startswith('~$')]  # 一時ファイルを除外
+    # exeファイルの場合、実行ファイルのディレクトリを取得
+    if getattr(sys, 'frozen', False):
+        # PyInstallerでビルドされた場合
+        base_path = sys._MEIPASS
+        work_dir = os.path.dirname(sys.executable)
+    else:
+        # 通常のPython実行の場合
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        work_dir = base_path
+    
+    # フォルダ内のエクセルファイルを取得（作業ディレクトリから）
+    excel_files = glob.glob(os.path.join(work_dir, '*.xlsx')) + glob.glob(os.path.join(work_dir, '*.xls'))
+    excel_files = [os.path.basename(f) for f in excel_files if not os.path.basename(f).startswith('~$')]  # 一時ファイルを除外
     
     return render_template('index.html', excel_files=excel_files)
 
@@ -521,7 +542,7 @@ def process():
         
         # 出力ファイル名を生成
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        output_file = f'勤怠集計_{timestamp}.xlsx'
+        output_file = os.path.join(work_dir, f'勤怠集計_{timestamp}.xlsx')
         
         # エクセルファイルを生成
         create_output_excel(person_data, business_data, output_file)
@@ -544,7 +565,7 @@ def process():
         
         return jsonify({
             'success': True,
-            'output_file': output_file,
+            'output_file': os.path.basename(output_file),
             'person_count': len(person_data),
             'business_count': len(business_data),
             'business_files': business_files
@@ -565,6 +586,5 @@ def download(filename):
     return send_file(filename, as_attachment=True)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(debug=True, port=5000)
 
