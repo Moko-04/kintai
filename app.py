@@ -505,6 +505,11 @@ def index():
     
     return render_template('index.html', excel_files=excel_files)
 
+@app.route('/game')
+def game():
+    """スマホ向けハクスラ・ローグライクRPG"""
+    return render_template('game.html')
+
 def allowed_file(filename):
     """ファイル拡張子をチェック"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
