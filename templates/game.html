@@ -5,681 +5,638 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0a0a12">
-<title>ダンジョンの深淵 - Roguelike</title>
+<meta name="theme-color" content="#1b2a1b">
+<title>オートワールド - 開拓と自動化</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#0a0a12;
-    font-family:-apple-system,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; color:#e8e8f0; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#10160f;
+    font-family:-apple-system,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif; color:#eef2e9; }
   #game { position:fixed; inset:0; touch-action:none; }
   canvas { display:block; width:100%; height:100%; }
 
-  /* HUD */
-  #hud { position:fixed; top:0; left:0; right:0; padding:8px 12px; pointer-events:none;
-    display:flex; flex-direction:column; gap:5px; padding-top:max(8px,env(safe-area-inset-top)); }
-  .bar { height:16px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.18); border-radius:8px; overflow:hidden; position:relative; }
-  .bar > span { position:absolute; inset:0; transition:width .15s linear; }
-  #hpFill { background:linear-gradient(90deg,#c0392b,#e74c3c); }
-  #xpFill { background:linear-gradient(90deg,#2980b9,#3498db); }
-  .barLabel { position:absolute; inset:0; font-size:10px; line-height:16px; text-align:center; font-weight:700;
-    text-shadow:0 1px 2px #000; letter-spacing:.5px; }
-  #topRow { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; text-shadow:0 1px 2px #000; }
-  #topRow .chip { background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.15); border-radius:7px; padding:3px 9px; }
-  #hpRow { display:flex; gap:6px; align-items:center; }
-  #hpRow .hpnum { font-size:11px; font-weight:700; text-shadow:0 1px 2px #000; min-width:74px; }
+  /* top resource strip */
+  #topbar { position:fixed; top:0; left:0; right:0; padding-top:max(6px,env(safe-area-inset-top));
+    background:linear-gradient(#0009,#0000); pointer-events:none; }
+  #clock { font-size:12px; font-weight:700; text-shadow:0 1px 2px #000; padding:2px 10px; display:flex; justify-content:space-between; }
+  #resStrip { display:flex; gap:6px; overflow-x:auto; padding:4px 8px 7px; -webkit-overflow-scrolling:touch; pointer-events:auto; }
+  #resStrip::-webkit-scrollbar{display:none;}
+  .res { flex:0 0 auto; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.13); border-radius:8px;
+    padding:3px 8px; font-size:12px; font-weight:700; white-space:nowrap; text-shadow:0 1px 2px #000; }
+  .res .v { color:#ffe27a; }
 
-  /* touch controls */
-  .ctrlBtn { position:fixed; pointer-events:auto; display:flex; align-items:center; justify-content:center;
-    border-radius:50%; font-weight:800; color:#fff; text-shadow:0 1px 3px #000; border:2px solid rgba(255,255,255,.25); }
-  #attackBtn { right:24px; bottom:calc(40px + env(safe-area-inset-bottom)); width:96px; height:96px; font-size:14px;
-    background:radial-gradient(circle at 35% 30%,#e74c3c,#922018); box-shadow:0 4px 16px rgba(0,0,0,.5); }
-  #potionBtn { right:130px; bottom:calc(44px + env(safe-area-inset-bottom)); width:66px; height:66px; font-size:12px;
-    background:radial-gradient(circle at 35% 30%,#27ae60,#145a32); box-shadow:0 4px 12px rgba(0,0,0,.5); }
-  #potionBtn .pcount { position:absolute; top:-4px; right:-4px; background:#f1c40f; color:#000; border-radius:10px;
-    font-size:11px; padding:1px 6px; font-weight:800; }
-  .ctrlBtn:active { transform:scale(.92); filter:brightness(1.2); }
-  .ctrlBtn.disabled { opacity:.35; filter:grayscale(.7); }
-  #invBtn { position:fixed; left:14px; bottom:calc(150px + env(safe-area-inset-bottom)); pointer-events:auto;
-    width:50px; height:50px; border-radius:12px; background:rgba(20,20,35,.8); border:2px solid rgba(255,255,255,.2);
-    display:flex; align-items:center; justify-content:center; font-size:22px; }
+  /* controls */
+  #joyBase{position:fixed;pointer-events:none;width:120px;height:120px;border-radius:50%;border:2px solid #fff3;background:#fff1;display:none;}
+  #joyKnob{position:fixed;pointer-events:none;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fffd,#aab8);display:none;}
+  .cbtn{position:fixed;pointer-events:auto;display:flex;align-items:center;justify-content:center;border-radius:50%;
+    font-weight:800;color:#fff;text-shadow:0 1px 3px #000;border:2px solid #fff4;box-shadow:0 4px 14px #0007;}
+  .cbtn:active{transform:scale(.93);filter:brightness(1.15);}
+  #gatherBtn{right:24px;bottom:calc(36px + env(safe-area-inset-bottom));width:96px;height:96px;font-size:15px;
+    background:radial-gradient(circle at 35% 30%,#e0a44a,#8a5a1c);}
+  #buildBtn{right:132px;bottom:calc(44px + env(safe-area-inset-bottom));width:70px;height:70px;font-size:24px;
+    background:radial-gradient(circle at 35% 30%,#5aa0e0,#27568a);}
+  .cbtn.disabled{opacity:.4;filter:grayscale(.6);}
 
-  /* joystick zone visual */
-  #joyBase { position:fixed; pointer-events:none; width:120px; height:120px; border-radius:50%;
-    border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.05); display:none; }
-  #joyKnob { position:fixed; pointer-events:none; width:54px; height:54px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.85),rgba(180,180,200,.5)); display:none; }
+  /* placement bar */
+  #placeBar{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(14px + env(safe-area-inset-bottom));
+    background:#0b140bdd;border-top:1px solid #fff2;display:none;flex-direction:column;gap:8px;z-index:30;}
+  #placeBar .hint{font-size:13px;text-align:center;color:#cfe0c0;}
+  #placeBar .row{display:flex;gap:10px;}
+  #placeBar button{flex:1;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:800;}
+  #placeCancel{background:#7f3b3b;color:#fff;}
+  #placeName{font-weight:800;text-align:center;font-size:15px;}
 
-  /* overlays */
-  .overlay { position:fixed; inset:0; background:rgba(6,6,14,.92); display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; padding:28px; z-index:50; gap:16px; }
-  .overlay h1 { font-size:30px; letter-spacing:1px; }
-  .overlay h2 { font-size:22px; }
-  .overlay p { font-size:14px; line-height:1.7; color:#b8b8c8; max-width:340px; }
-  .btn { pointer-events:auto; background:linear-gradient(135deg,#3498db,#2c3e8f); color:#fff; border:none;
-    padding:15px 40px; font-size:17px; font-weight:800; border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.5);
-    letter-spacing:1px; }
-  .btn:active { transform:scale(.96); }
-  .btn.alt { background:linear-gradient(135deg,#7f8c8d,#34495e); padding:11px 26px; font-size:14px; }
-  .title-art { font-size:46px; }
+  /* build panel */
+  #buildPanel{position:fixed;inset:0;background:#0b120ae8;z-index:40;display:none;flex-direction:column;
+    padding:max(14px,env(safe-area-inset-top)) 12px 14px;}
+  #buildPanel h2{text-align:center;font-size:19px;margin-bottom:8px;}
+  .tabs{display:flex;gap:8px;margin-bottom:10px;}
+  .tab{flex:1;padding:10px;text-align:center;background:#1c2a1a;border:1px solid #fff2;border-radius:9px;font-weight:800;font-size:14px;}
+  .tab.on{background:#3a6b2f;border-color:#7fd06a;}
+  #cardList{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;}
+  .card{background:#16210f;border:1px solid #fff2;border-left:4px solid #6aa84f;border-radius:10px;padding:10px 12px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .card .l .nm{font-size:15px;font-weight:800;}
+  .card .l .ds{font-size:11px;color:#a9c098;margin-top:2px;}
+  .card .l .cost{font-size:12px;margin-top:4px;color:#d7e6c8;}
+  .card .l .cost .bad{color:#e88;}
+  .card button{background:#4f8b35;color:#fff;border:none;border-radius:9px;padding:11px 15px;font-size:13px;font-weight:800;flex:0 0 auto;}
+  .card button:disabled{background:#3a4733;color:#889;}
+  .card.done{border-left-color:#f1c40f;}
+  #panelClose{margin-top:10px;align-self:center;background:#46613a;color:#fff;border:none;border-radius:10px;padding:11px 30px;font-size:15px;font-weight:800;}
 
-  /* inventory */
-  #invPanel { position:fixed; inset:0; background:rgba(6,6,14,.96); z-index:60; display:none; flex-direction:column;
-    padding:max(16px,env(safe-area-inset-top)) 16px 16px; }
-  #invPanel h2 { text-align:center; margin-bottom:10px; font-size:20px; }
-  .equipRow { display:flex; gap:10px; margin-bottom:14px; }
-  .slot { flex:1; background:rgba(20,20,35,.8); border:1px solid rgba(255,255,255,.15); border-radius:10px; padding:10px; }
-  .slot .lab { font-size:11px; color:#888; margin-bottom:4px; }
-  .slot .nm { font-size:13px; font-weight:700; }
-  .slot .st { font-size:11px; color:#9bd; margin-top:3px; }
-  #invList { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; -webkit-overflow-scrolling:touch; }
-  .item { background:rgba(20,20,35,.8); border-left:4px solid #888; border-radius:8px; padding:10px 12px;
-    display:flex; justify-content:space-between; align-items:center; pointer-events:auto; }
-  .item .info .nm { font-size:14px; font-weight:700; }
-  .item .info .st { font-size:11px; color:#9aa; margin-top:2px; }
-  .item .eq { background:#2c7; color:#012; border:none; border-radius:7px; padding:8px 14px; font-size:12px; font-weight:800; pointer-events:auto; }
-  #statsBox { background:rgba(20,20,35,.8); border:1px solid rgba(255,255,255,.12); border-radius:10px;
-    padding:12px; margin-bottom:12px; font-size:13px; line-height:1.8; }
-  #statsBox b { color:#f1c40f; }
-  .emptyNote { text-align:center; color:#667; font-size:13px; padding:20px; }
+  /* generic overlay */
+  .overlay{position:fixed;inset:0;background:#08100be8;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:28px;gap:16px;z-index:60;}
+  .overlay h1{font-size:30px;}
+  .overlay p{font-size:14px;line-height:1.7;color:#bcd0ac;max-width:340px;}
+  .bigbtn{background:linear-gradient(135deg,#5aa0e0,#2c6b3e);color:#fff;border:none;padding:15px 40px;font-size:17px;font-weight:800;
+    border-radius:12px;box-shadow:0 4px 14px #0007;letter-spacing:1px;}
+  .bigbtn:active{transform:scale(.96);}
+  .smallbtn{background:#46613a;color:#fff;border:none;padding:10px 22px;font-size:13px;font-weight:700;border-radius:10px;}
 
-  /* floating combat text handled on canvas */
-  #toast { position:fixed; left:50%; top:64px; transform:translateX(-50%); background:rgba(0,0,0,.78);
-    border:1px solid rgba(255,255,255,.2); padding:9px 18px; border-radius:10px; font-size:13px; font-weight:700;
-    z-index:40; opacity:0; transition:opacity .3s; pointer-events:none; max-width:86%; text-align:center; }
-  #toast.show { opacity:1; }
+  #toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#000b;border:1px solid #fff3;
+    padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;z-index:50;opacity:0;transition:opacity .3s;
+    pointer-events:none;max-width:86%;text-align:center;}
+  #toast.show{opacity:1;}
+
+  /* building info popup */
+  #infoPop{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:#13200edd;border:1px solid #fff3;border-radius:12px;padding:12px 16px;z-index:35;display:none;
+    min-width:200px;text-align:center;}
+  #infoPop .t{font-weight:800;font-size:15px;margin-bottom:4px;}
+  #infoPop .s{font-size:12px;color:#bcd0ac;margin-bottom:10px;}
+  #infoPop .row{display:flex;gap:8px;}
+  #infoPop button{flex:1;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:800;}
+  #infoRemove{background:#8a3b3b;color:#fff;} #infoClose{background:#46613a;color:#fff;}
 </style>
 </head>
 <body>
 <div id="game"><canvas id="cv"></canvas></div>
 
-<div id="hud">
-  <div id="topRow">
-    <span class="chip">B<span id="floorNum">1</span>F</span>
-    <span class="chip">Lv <span id="lvlNum">1</span></span>
-    <span class="chip">💰 <span id="goldNum">0</span></span>
-  </div>
-  <div id="hpRow">
-    <span class="hpnum">HP <span id="hpText">30/30</span></span>
-    <div class="bar" style="flex:1"><span id="hpFill" style="width:100%"></span></div>
-  </div>
-  <div class="bar"><span id="xpFill" style="width:0%"></span><span class="barLabel" id="xpLabel">EXP</span></div>
+<div id="topbar">
+  <div id="clock"><span id="dayLabel">1日目</span><span id="phaseLabel">☀️ 昼</span></div>
+  <div id="resStrip"></div>
 </div>
 
 <div id="joyBase"></div><div id="joyKnob"></div>
+<div id="buildBtn" class="cbtn">🔨</div>
+<div id="gatherBtn" class="cbtn">採取</div>
 
-<div id="invBtn">🎒</div>
-<div id="potionBtn" class="ctrlBtn">薬<span class="pcount" id="potCount">0</span></div>
-<div id="attackBtn" class="ctrlBtn">攻撃</div>
+<div id="placeBar">
+  <div id="placeName"></div>
+  <div class="hint" id="placeHint">設置する場所をタップ</div>
+  <div class="row"><button id="placeCancel">キャンセル</button></div>
+</div>
+
+<div id="infoPop">
+  <div class="t" id="infoTitle"></div>
+  <div class="s" id="infoStat"></div>
+  <div class="row"><button id="infoRemove">撤去(半額返却)</button><button id="infoClose">閉じる</button></div>
+</div>
+
+<div id="buildPanel">
+  <h2>🏭 建設 & クラフト</h2>
+  <div class="tabs">
+    <div class="tab on" data-tab="build">⚙️ 設備</div>
+    <div class="tab" data-tab="craft">🛠️ クラフト</div>
+  </div>
+  <div id="cardList"></div>
+  <button id="panelClose">閉じる</button>
+</div>
 
 <div id="toast"></div>
 
-<!-- Title -->
 <div id="titleScreen" class="overlay">
-  <div class="title-art">⚔️🗡️</div>
-  <h1>ダンジョンの深淵</h1>
-  <p>自動生成される地下迷宮を攻略するハクスラ・ローグライク。<br>敵を倒し、装備を集め、より深い階層へ。<br><b>倒れたら最初から</b>——どこまで潜れるか？</p>
-  <button class="btn" id="startBtn">冒険を始める</button>
-  <p style="font-size:12px;color:#778">左半分ドラッグで移動 / 右下「攻撃」 / 緑ボタンで回復薬</p>
+  <div style="font-size:46px">🌍⛏️🏭</div>
+  <h1>オートワールド</h1>
+  <p>広大な大地を探索し、資源を採取。<br>採掘機や工場を建てて<b>生産を自動化</b>し、<br>最後は<b>ロケット</b>を組み立てて飛び立とう。</p>
+  <button class="bigbtn" id="startBtn">開拓を始める</button>
+  <button class="smallbtn" id="continueBtn" style="display:none">続きから</button>
+  <p style="font-size:12px;color:#889">左半分ドラッグで移動 / 右下「採取」 / 🔨で建設</p>
 </div>
 
-<!-- Game Over -->
-<div id="overScreen" class="overlay" style="display:none">
-  <div class="title-art">💀</div>
-  <h1>YOU DIED</h1>
-  <p id="overStats"></p>
-  <button class="btn" id="retryBtn">もう一度挑む</button>
-</div>
-
-<!-- Level up -->
-<div id="levelScreen" class="overlay" style="display:none">
-  <h2>⬆️ レベルアップ！</h2>
-  <p id="levelInfo"></p>
-  <button class="btn" id="levelBtn">続ける</button>
-</div>
-
-<!-- Inventory -->
-<div id="invPanel">
-  <h2>🎒 装備とアイテム</h2>
-  <div id="statsBox"></div>
-  <div class="equipRow">
-    <div class="slot"><div class="lab">⚔️ 武器</div><div class="nm" id="eqWpnNm">なし</div><div class="st" id="eqWpnSt"></div></div>
-    <div class="slot"><div class="lab">🛡️ 防具</div><div class="nm" id="eqArmNm">なし</div><div class="st" id="eqArmSt"></div></div>
-  </div>
-  <div id="invList"></div>
-  <button class="btn alt" id="invClose" style="margin-top:12px;align-self:center">閉じる</button>
+<div id="winScreen" class="overlay" style="display:none">
+  <div style="font-size:46px">🚀✨</div>
+  <h1>発射成功！</h1>
+  <p id="winStat"></p>
+  <button class="bigbtn" id="winContinue">探索を続ける</button>
+  <button class="smallbtn" id="winReset">新しい世界で最初から</button>
 </div>
 
 <script>
 (() => {
-  "use strict";
-  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  const TILE = 40;                 // logical tile size in world px
-  let DPR = Math.min(window.devicePixelRatio || 1, 2);
-  let VW = 0, VH = 0;              // viewport css px
+"use strict";
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const TILE=44;
+let DPR=Math.min(devicePixelRatio||1,2), VW=0, VH=0;
+function resize(){ DPR=Math.min(devicePixelRatio||1,2); VW=innerWidth; VH=innerHeight;
+  cv.width=Math.floor(VW*DPR); cv.height=Math.floor(VH*DPR); cv.style.width=VW+'px'; cv.style.height=VH+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize',resize); resize();
 
-  function resize(){
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    VW = window.innerWidth; VH = window.innerHeight;
-    cv.width = Math.floor(VW * DPR); cv.height = Math.floor(VH * DPR);
-    cv.style.width = VW + 'px'; cv.style.height = VH + 'px';
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-  }
-  window.addEventListener('resize', resize); resize();
+const rnd=(a,b)=>a+Math.random()*(b-a), ri=(a,b)=>Math.floor(rnd(a,b+1)), pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v), dist=(a,b,c,d)=>Math.hypot(a-c,b-d);
+const $=id=>document.getElementById(id);
 
-  const rnd = (a,b)=> a + Math.random()*(b-a);
-  const ri  = (a,b)=> Math.floor(rnd(a,b+1));
-  const pick= arr => arr[Math.floor(Math.random()*arr.length)];
-  const clamp=(v,a,b)=> v<a?a:(v>b?b:v);
-  const dist=(ax,ay,bx,by)=> Math.hypot(ax-bx,ay-by);
+// ---------- data ----------
+const RES={
+  wood:{n:'木材',e:'🪵'}, stone:{n:'石',e:'🪨'}, coal:{n:'石炭',e:'⚫'},
+  iron_ore:{n:'鉄鉱石',e:'🟤'}, copper_ore:{n:'銅鉱石',e:'🟠'},
+  iron_plate:{n:'鉄板',e:'🔩'}, copper_plate:{n:'銅板',e:'🟧'},
+  gear:{n:'歯車',e:'⚙️'}, circuit:{n:'回路',e:'🔌'},
+};
+const RES_ORDER=['wood','stone','coal','iron_ore','copper_ore','iron_plate','copper_plate','gear','circuit'];
 
-  // ---------- Game state ----------
-  const G = {
-    state:'title', floor:1, map:null, mw:0, mh:0,
-    player:null, enemies:[], drops:[], particles:[], floaters:[], stairs:null,
-    cam:{x:0,y:0}, last:0, screenShake:0,
-  };
+const NODE={
+  tree:  {res:'wood',     max:40, respawn:22, draw:'tree'},
+  rock:  {res:'stone',    max:70, respawn:30, draw:'rock'},
+  coal:  {res:'coal',     max:55, respawn:38, draw:'ore', color:'#3a3a3a', spot:'#000'},
+  iron:  {res:'iron_ore', max:55, respawn:42, draw:'ore', color:'#8a99a8', spot:'#cdd6df'},
+  copper:{res:'copper_ore',max:55,respawn:42, draw:'ore', color:'#a86b3c', spot:'#e08a4a'},
+};
 
-  function newPlayer(){
-    return {
-      x:0,y:0,r:13, facing:{x:1,y:0},
-      hp:30, maxhp:30, level:1, xp:0, xpNext:20, gold:0,
-      baseAtk:6, baseDef:0, speed:150,
-      atkCd:0, atkTimer:0, hurtCd:0,
-      potions:1,
-      wpn:null, arm:null,
-    };
-  }
-  const totalAtk = p => p.baseAtk + (p.wpn? p.wpn.val:0);
-  const totalDef = p => p.baseDef + (p.arm? p.arm.val:0);
+const BUILD=[
+  {key:'miner',  name:'採掘機',   e:'⛏️', place:'node', cost:{wood:5,stone:5}, interval:1.6, color:'#c9943f',
+    ds:'資源ノードに設置→自動で採掘'},
+  {key:'furnace',name:'製錬炉',   e:'🔥', place:'ground', cost:{stone:12}, interval:2.0, color:'#d35400',
+    recipe:{in:{iron_ore:1,coal:1}, out:{iron_plate:1}}, ds:'鉄鉱石+石炭→鉄板'},
+  {key:'cfurnace',name:'銅製錬炉',e:'🟥', place:'ground', cost:{stone:12}, interval:2.0, color:'#a04020',
+    recipe:{in:{copper_ore:1,coal:1}, out:{copper_plate:1}}, ds:'銅鉱石+石炭→銅板'},
+  {key:'gearp',  name:'歯車工場', e:'⚙️', place:'ground', cost:{stone:10,iron_plate:5}, interval:2.4, color:'#7f8c8d',
+    recipe:{in:{iron_plate:2}, out:{gear:1}}, ds:'鉄板2→歯車'},
+  {key:'circ',   name:'回路工場', e:'🔌', place:'ground', cost:{stone:10,iron_plate:5}, interval:3.0, color:'#27ae60',
+    recipe:{in:{copper_plate:1,iron_plate:1}, out:{circuit:1}}, ds:'銅板+鉄板→回路'},
+  {key:'store',  name:'倉庫',     e:'📦', place:'ground', cost:{wood:10,stone:5}, color:'#8d6e63',
+    ds:'資源の保管上限+300', passive:'storage'},
+];
+const BUILD_BY=Object.fromEntries(BUILD.map(b=>[b.key,b]));
 
-  // ---------- Dungeon generation (rooms + corridors) ----------
-  function genFloor(floor){
-    const W = 32 + Math.min(floor*2,20), H = 32 + Math.min(floor*2,20);
-    const map = new Uint8Array(W*H); // 0 wall, 1 floor, 2 stairs
-    const idx=(x,y)=> y*W+x;
-    const rooms=[];
-    const roomCount = ri(6, 9+Math.min(floor,8));
-    for(let i=0;i<roomCount;i++){
-      const rw=ri(4,8), rh=ri(4,8);
-      const rx=ri(1,W-rw-2), ry=ri(1,H-rh-2);
-      const room={x:rx,y:ry,w:rw,h:rh,cx:Math.floor(rx+rw/2),cy:Math.floor(ry+rh/2)};
-      // carve
-      for(let y=ry;y<ry+rh;y++) for(let x=rx;x<rx+rw;x++) map[idx(x,y)]=1;
-      if(rooms.length){ // connect to previous room with L corridor
-        const prev=rooms[rooms.length-1];
-        let cx=prev.cx, cy=prev.cy;
-        while(cx!==room.cx){ map[idx(cx,cy)]=1; map[idx(cx,clamp(cy+1,0,H-1))]=1; cx+=cx<room.cx?1:-1; }
-        while(cy!==room.cy){ map[idx(cx,cy)]=1; map[idx(clamp(cx+1,0,W-1),cy)]=1; cy+=cy<room.cy?1:-1; }
-      }
-      rooms.push(room);
+const CRAFT=[
+  {key:'stone_pick',name:'石のツルハシ',e:'⛏️',cost:{wood:10,stone:10},ds:'採取量 2倍',apply:()=>{S.tier=Math.max(S.tier,2);}},
+  {key:'iron_pick', name:'鉄のツルハシ',e:'⛏️',cost:{iron_plate:15},ds:'採取量 3倍',req:()=>S.tier>=2,apply:()=>{S.tier=Math.max(S.tier,3);}},
+  {key:'rocket',    name:'🚀 ロケット建造',e:'🚀',cost:{gear:30,circuit:30,iron_plate:50,copper_plate:20},ds:'これが最終目標！発射でクリア',apply:()=>winGame()},
+];
+
+// ---------- state ----------
+let S=null; // save-able state
+function freshState(seed){
+  return { seed:seed, time:60, px:0, py:0, tier:1,
+    inv:{}, nodes:{}, builds:{}, crafted:{}, won:false };
+}
+const G={ run:false, cam:{x:0,y:0}, last:0, joy:{active:false,id:null,bx:0,by:0,dx:0,dy:0,mag:0},
+  keys:{}, floaters:[], particles:[], placeKey:null, gatherCd:0, selBuild:null };
+
+const cap=()=> 200 + 300*Object.values(S.builds).filter(b=>b.key==='store').length;
+const invAmt=k=> S.inv[k]||0;
+function addInv(k,n){ const c=cap(); const cur=invAmt(k); const room=c-cur; const add=Math.min(n,room);
+  if(add>0) S.inv[k]=cur+add; return add; }
+function hasCost(cost){ for(const k in cost) if(invAmt(k)<cost[k]) return false; return true; }
+function payCost(cost){ for(const k in cost) S.inv[k]-=cost[k]; }
+
+// ---------- noise / world ----------
+function hash2(x,y,s){ let h=x*374761393 + y*668265263 + s*982451653; h=(h^(h>>13))*1274126177; h^=h>>16; return (h>>>0)/4294967296; }
+function vnoise(x,y,s){ const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=hash2(xi,yi,s),b=hash2(xi+1,yi,s),c=hash2(xi,yi+1,s),d=hash2(xi+1,yi+1,s);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }
+function fbm(x,y,s){ let t=0,amp=.6,f=1; for(let i=0;i<3;i++){ t+=vnoise(x*f,y*f,s+i*53)*amp; amp*=.5; f*=2; } return t; }
+function biomeAt(tx,ty){
+  const e=fbm(tx*0.06, ty*0.06, S.seed);
+  const m=fbm(tx*0.05+40, ty*0.05+40, S.seed+9);
+  if(e<0.33) return {t:'water', e, m};
+  if(e<0.38) return {t:'sand', e, m};
+  if(e>0.70) return {t:'rock', e, m};
+  return {t:m>0.5?'forest':'grass', e, m};
+}
+const WORLD=130;
+function nodeKey(tx,ty){ return tx+','+ty; }
+function genWorld(){
+  S.nodes={};
+  for(let ty=0;ty<WORLD;ty++) for(let tx=0;tx<WORLD;tx++){
+    const b=biomeAt(tx,ty); const r=hash2(tx,ty,S.seed+777); const r2=hash2(tx,ty,S.seed+1313);
+    let type=null;
+    if(b.t==='forest'){ if(r<0.34) type='tree'; else if(r<0.37) type='rock'; }
+    else if(b.t==='grass'){ if(r<0.10) type='tree'; else if(r<0.13) type='rock'; }
+    else if(b.t==='rock'){
+      if(r2<0.10) type='iron'; else if(r2<0.19) type='copper'; else if(r2<0.30) type='coal'; else if(r<0.55) type='rock';
     }
-    G.map=map; G.mw=W; G.mh=H; G._idx=idx; G.rooms=rooms;
-    // place stairs far from first room
-    const last=rooms[rooms.length-1];
-    map[idx(last.cx,last.cy)]=2;
-    G.stairs={x:last.cx*TILE+TILE/2, y:last.cy*TILE+TILE/2};
-    // player at first room center
-    const first=rooms[0];
-    G.player.x=first.cx*TILE+TILE/2; G.player.y=first.cy*TILE+TILE/2;
-    // spawn enemies in rooms (not the first)
-    G.enemies=[]; G.drops=[]; G.particles=[]; G.floaters=[];
-    const enemyTarget = 4 + Math.floor(floor*1.6);
-    let placed=0, tries=0;
-    while(placed<enemyTarget && tries<400){
-      tries++;
-      const room=pick(rooms.slice(1));
-      const ex=ri(room.x,room.x+room.w-1), ey=ri(room.y,room.y+room.h-1);
-      const wx=ex*TILE+TILE/2, wy=ey*TILE+TILE/2;
-      if(dist(wx,wy,G.player.x,G.player.y) < TILE*5) continue;
-      G.enemies.push(makeEnemy(wx,wy,floor));
-      placed++;
-    }
+    if(type){ const d=NODE[type]; S.nodes[nodeKey(tx,ty)]={type, amount:d.max}; }
   }
-
-  function isWall(wx,wy){
-    const tx=Math.floor(wx/TILE), ty=Math.floor(wy/TILE);
-    if(tx<0||ty<0||tx>=G.mw||ty>=G.mh) return true;
-    return G.map[G._idx(tx,ty)]===0;
-  }
-  // circle vs wall collision, axis separated
-  function moveEntity(e, dx, dy){
-    const r=e.r;
-    if(!isWall(e.x+dx+Math.sign(dx)*r, e.y+r*0.6) && !isWall(e.x+dx+Math.sign(dx)*r, e.y-r*0.6))
-      e.x+=dx;
-    if(!isWall(e.x+r*0.6, e.y+dy+Math.sign(dy)*r) && !isWall(e.x-r*0.6, e.y+dy+Math.sign(dy)*r))
-      e.y+=dy;
-  }
-
-  // ---------- Enemies ----------
-  const ENEMY_TYPES=[
-    {key:'slime', name:'スライム',  color:'#5dd55d', r:12, hpB:10, atkB:3, spd:55,  xp:8,  emoji:'🟢'},
-    {key:'bat',   name:'コウモリ',  color:'#9b59b6', r:10, hpB:7,  atkB:4, spd:105, xp:10, emoji:'🦇'},
-    {key:'skel',  name:'スケルトン',color:'#d8d8d8', r:13, hpB:16, atkB:6, spd:70,  xp:16, emoji:'💀'},
-    {key:'orc',   name:'オーク',    color:'#c0392b', r:15, hpB:26, atkB:9, spd:62,  xp:26, emoji:'👹'},
-  ];
-  function makeEnemy(x,y,floor){
-    // weight stronger enemies on deeper floors
-    let pool=[ENEMY_TYPES[0],ENEMY_TYPES[1]];
-    if(floor>=2) pool.push(ENEMY_TYPES[2]);
-    if(floor>=4) pool.push(ENEMY_TYPES[3], ENEMY_TYPES[3]);
-    if(floor>=3) pool.push(ENEMY_TYPES[2]);
-    const t=pick(pool);
-    const scale=1+(floor-1)*0.28;
-    const hp=Math.round(t.hpB*scale);
-    return {type:t, x,y, r:t.r, hp, maxhp:hp, atk:Math.round(t.atkB*scale),
-      spd:t.spd, xp:Math.round(t.xp*scale), hurtCd:0, atkCd:0, knock:{x:0,y:0}, wob:Math.random()*6};
-  }
-
-  // ---------- Loot ----------
-  const RARITY=[
-    {name:'コモン',   color:'#bbbbbb', mult:1.0, w:50},
-    {name:'マジック', color:'#5dade2', mult:1.4, w:30},
-    {name:'レア',     color:'#f4d03f', mult:1.9, w:14},
-    {name:'エピック', color:'#bb6bd9', mult:2.6, w:6},
-  ];
-  const WPN_NAMES=['短剣','剣','戦斧','メイス','槍','大剣','クレイモア'];
-  const ARM_NAMES=['布の服','革の鎧','チェインメイル','プレートアーマー','ミスリル鎧'];
-  function rollRarity(){
-    const tot=RARITY.reduce((s,r)=>s+r.w,0); let n=Math.random()*tot;
-    for(const r of RARITY){ if(n<r.w) return r; n-=r.w; } return RARITY[0];
-  }
-  function makeItem(floor, forceKind){
-    const kind = forceKind || (Math.random()<0.5?'wpn':'arm');
-    const rar=rollRarity();
-    const base = kind==='wpn'? (4+floor*1.5) : (2+floor*1.1);
-    const val=Math.max(1, Math.round(base*rar.mult*rnd(0.85,1.15)));
-    const nm = kind==='wpn'? pick(WPN_NAMES) : pick(ARM_NAMES);
-    return {kind, rarity:rar, val, name:`${rar.name}の${nm}`,
-      label: kind==='wpn'? `攻撃+${val}` : `防御+${val}`, emoji: kind==='wpn'?'⚔️':'🛡️'};
-  }
-  function dropLoot(x,y,floor){
-    // gold almost always
-    const goldAmt=ri(3,8)+floor*2;
-    G.drops.push({type:'gold', x:x+rnd(-8,8), y:y+rnd(-8,8), amt:goldAmt, r:8, bob:Math.random()*6});
-    // chance for item
-    if(Math.random()<0.32){
-      const it=makeItem(floor);
-      G.drops.push({type:'item', x:x+rnd(-10,10), y:y+rnd(-10,10), item:it, r:11, bob:Math.random()*6});
-    }
-    // chance for potion
-    else if(Math.random()<0.16){
-      G.drops.push({type:'potion', x:x+rnd(-8,8), y:y+rnd(-8,8), r:9, bob:Math.random()*6});
+  // spawn: find grass/forest near center with nearby resources
+  let cx=WORLD>>1, cy=WORLD>>1;
+  for(let rad=0;rad<30;rad++){ let found=false;
+    for(let dy=-rad;dy<=rad&&!found;dy++)for(let dx=-rad;dx<=rad&&!found;dx++){
+      const tx=cx+dx,ty=cy+dy,b=biomeAt(tx,ty);
+      if(b.t==='grass'||b.t==='forest'){ cx=tx;cy=ty;found=true; } }
+    if(found)break; }
+  S.px=cx*TILE+TILE/2; S.py=cy*TILE+TILE/2;
+  // guarantee starter trees & stone around spawn
+  let ensured={tree:0,rock:0};
+  for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){
+    const tx=cx+dx,ty=cy+dy,k=nodeKey(tx,ty);
+    if((dx||dy) && !S.nodes[k] && biomeAt(tx,ty).t!=='water'){
+      if(ensured.tree<5){ S.nodes[k]={type:'tree',amount:NODE.tree.max}; ensured.tree++; }
+      else if(ensured.rock<4){ S.nodes[k]={type:'rock',amount:NODE.rock.max}; ensured.rock++; }
     }
   }
+}
+function tileSolid(tx,ty){
+  if(tx<0||ty<0||tx>=WORLD||ty>=WORLD) return true;
+  if(biomeAt(tx,ty).t==='water') return true;
+  if(S.builds[nodeKey(tx,ty)]) return true;
+  return false;
+}
+function moveEnt(e,dx,dy){
+  const r=e.r;
+  let nx=e.x+dx;
+  if(!tileSolid((nx+Math.sign(dx)*r)/TILE|0,(e.y+r*0.6)/TILE|0) && !tileSolid((nx+Math.sign(dx)*r)/TILE|0,(e.y-r*0.6)/TILE|0)) e.x=nx;
+  let ny=e.y+dy;
+  if(!tileSolid((e.x+r*0.6)/TILE|0,(ny+Math.sign(dy)*r)/TILE|0) && !tileSolid((e.x-r*0.6)/TILE|0,(ny+Math.sign(dy)*r)/TILE|0)) e.y=ny;
+}
 
-  // ---------- Floaters & particles ----------
-  function floater(x,y,text,color){ G.floaters.push({x,y,text,color,life:0.9,vy:-34}); }
-  function burst(x,y,color,n){
-    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, s=rnd(40,160);
-      G.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.25,.55),color,r:rnd(2,4)}); }
+// ---------- save / load ----------
+const SAVE_KEY='autoworld_save_v1';
+function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+function load(){ try{ const s=localStorage.getItem(SAVE_KEY); if(!s)return null; return JSON.parse(s);}catch(e){return null;} }
+let autosaveT=0;
+
+// ---------- effects ----------
+function floater(x,y,txt,c){ G.floaters.push({x,y,txt,c,life:1,vy:-30}); }
+function burst(x,y,c,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,sp=rnd(30,120);
+  G.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:rnd(.3,.6),c,r:rnd(2,4)}); } }
+let toastT=null;
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1700); }
+
+// ---------- gather ----------
+function nearestNode(){ let best=null,bd=1e9;
+  const ptx=S.px/TILE|0, pty=S.py/TILE|0;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+    const tx=ptx+dx,ty=pty+dy,k=nodeKey(tx,ty),nd=S.nodes[k];
+    if(nd && nd.amount>0){ const cx=tx*TILE+TILE/2,cy=ty*TILE+TILE/2,d=dist(S.px,S.py,cx,cy);
+      if(d<TILE*2 && d<bd){ bd=d; best={k,nd,cx,cy}; } }
   }
+  return best;
+}
+function doGather(){
+  if(G.gatherCd>0) return; G.gatherCd=0.38;
+  const t=nearestNode(); if(!t){ return; }
+  const def=NODE[t.nd.type], yield_=Math.min(S.tier, t.nd.amount);
+  const got=addInv(def.res, yield_);
+  if(got<=0){ floater(t.cx,t.cy-20,'倉庫満杯','#e88'); return; }
+  t.nd.amount-=yield_;
+  burst(t.cx,t.cy,'#fff',5);
+  floater(t.cx,t.cy-20,'+'+got+RES[def.res].e,'#ffe27a');
+  if(t.nd.amount<=0){ t.nd.respawnAt=S.time+def.respawn; }
+  renderRes();
+}
 
-  // ---------- Combat ----------
-  function playerAttack(){
-    const p=G.player; if(p.atkCd>0) return;
-    p.atkCd=0.42; p.atkTimer=0.22;
-    const reach=TILE*1.15+ (p.wpn?6:0);
-    const dmgBase=totalAtk(p);
-    burst(p.x+p.facing.x*reach*0.6, p.y+p.facing.y*reach*0.6, '#fff', 6);
-    let hitAny=false;
-    for(const e of G.enemies){
-      const d=dist(p.x,p.y,e.x,e.y);
-      if(d<reach+e.r){
-        // facing arc check (dot product)
-        const dx=(e.x-p.x)/(d||1), dy=(e.y-p.y)/(d||1);
-        if(dx*p.facing.x+dy*p.facing.y > 0.25 || d<e.r+p.r+4){
-          const dmg=Math.max(1, Math.round(dmgBase*rnd(0.85,1.15)));
-          e.hp-=dmg; e.hurtCd=0.12; hitAny=true;
-          e.knock.x+=dx*180; e.knock.y+=dy*180;
-          floater(e.x,e.y-e.r,'-'+dmg,'#ffd24a');
-          burst(e.x,e.y,e.type.color,7);
-        }
-      }
-    }
-    if(hitAny) G.screenShake=Math.min(G.screenShake+3,8);
-  }
-
-  function damagePlayer(amt){
-    const p=G.player; if(p.hurtCd>0) return;
-    const dmg=Math.max(1, amt-totalDef(p));
-    p.hp-=dmg; p.hurtCd=0.55;
-    floater(p.x,p.y-p.r-6,'-'+dmg,'#ff5a5a');
-    G.screenShake=Math.min(G.screenShake+6,12);
-    burst(p.x,p.y,'#e74c3c',8);
-    if(p.hp<=0){ p.hp=0; gameOver(); }
-  }
-
-  function usePotion(){
-    const p=G.player; if(p.potions<=0 || p.hp>=p.maxhp) return;
-    p.potions--; const heal=Math.round(p.maxhp*0.5);
-    p.hp=Math.min(p.maxhp,p.hp+heal);
-    floater(p.x,p.y-p.r-6,'+'+heal,'#5dd55d'); burst(p.x,p.y,'#2ecc71',12);
-    updateHud();
-  }
-
-  function gainXp(n){
-    const p=G.player; p.xp+=n;
-    while(p.xp>=p.xpNext){
-      p.xp-=p.xpNext; p.level++;
-      p.xpNext=Math.round(p.xpNext*1.45);
-      p.maxhp+=8; p.hp=p.maxhp; p.baseAtk+=2; p.baseDef+=1;
-      showLevelUp();
-    }
-    updateHud();
-  }
-
-  function killEnemy(e,i){
-    gainXp(e.xp);
-    dropLoot(e.x,e.y,G.floor);
-    burst(e.x,e.y,e.type.color,16);
-    G.enemies.splice(i,1);
-  }
-
-  function nextFloor(){
-    G.floor++;
-    toast('B'+G.floor+'F へ降りた');
-    genFloor(G.floor);
-    G.player.hp=Math.min(G.player.maxhp, G.player.hp+Math.round(G.player.maxhp*0.2));
-    updateHud();
-  }
-
-  // ---------- Input: virtual joystick + buttons ----------
-  const joy={active:false, id:null, bx:0, by:0, dx:0, dy:0, mag:0};
-  const keys={};
-  const joyBase=document.getElementById('joyBase'), joyKnob=document.getElementById('joyKnob');
-
-  function touchStartMove(t){
-    joy.active=true; joy.id=t.identifier; joy.bx=t.clientX; joy.by=t.clientY; joy.dx=0; joy.dy=0; joy.mag=0;
-    joyBase.style.display='block'; joyKnob.style.display='block';
-    joyBase.style.left=(t.clientX-60)+'px'; joyBase.style.top=(t.clientY-60)+'px';
-    joyKnob.style.left=(t.clientX-27)+'px'; joyKnob.style.top=(t.clientY-27)+'px';
-  }
-  function touchMoveMove(t){
-    let dx=t.clientX-joy.bx, dy=t.clientY-joy.by;
-    const mag=Math.hypot(dx,dy), max=48;
-    if(mag>max){ dx=dx/mag*max; dy=dy/mag*max; }
-    joy.dx=dx/max; joy.dy=dy/max; joy.mag=Math.min(mag/max,1);
-    joyKnob.style.left=(joy.bx+dx-27)+'px'; joyKnob.style.top=(joy.by+dy-27)+'px';
-  }
-  function endMove(){ joy.active=false; joy.id=null; joy.dx=0; joy.dy=0; joy.mag=0;
-    joyBase.style.display='none'; joyKnob.style.display='none'; }
-
-  const isControl = el => el && (el.closest && el.closest('#attackBtn,#potionBtn,#invBtn,.btn,#invPanel'));
-
-  cv.addEventListener('touchstart', ev=>{
-    for(const t of ev.changedTouches){
-      if(t.clientX < VW*0.55 && !joy.active) touchStartMove(t);
-    }
-  }, {passive:true});
-  cv.addEventListener('touchmove', ev=>{
-    for(const t of ev.changedTouches) if(t.identifier===joy.id) touchMoveMove(t);
-  }, {passive:true});
-  cv.addEventListener('touchend', ev=>{
-    for(const t of ev.changedTouches) if(t.identifier===joy.id) endMove();
-  }, {passive:true});
-  cv.addEventListener('touchcancel', ev=>{
-    for(const t of ev.changedTouches) if(t.identifier===joy.id) endMove();
-  }, {passive:true});
-
-  // mouse fallback (desktop)
-  let mouseMoving=false;
-  cv.addEventListener('mousedown', e=>{ if(e.clientX<VW*0.55){ mouseMoving=true; touchStartMove({identifier:'m',clientX:e.clientX,clientY:e.clientY}); }});
-  window.addEventListener('mousemove', e=>{ if(mouseMoving) touchMoveMove({clientX:e.clientX,clientY:e.clientY}); });
-  window.addEventListener('mouseup', ()=>{ if(mouseMoving){ mouseMoving=false; endMove(); }});
-
-  // keyboard (desktop testing)
-  window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true;
-    if(e.key===' '){ e.preventDefault(); playerAttack(); } if(e.key.toLowerCase()==='q') usePotion(); });
-  window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
-
-  const attackBtn=document.getElementById('attackBtn');
-  attackBtn.addEventListener('touchstart', e=>{ e.preventDefault(); playerAttack(); }, {passive:false});
-  attackBtn.addEventListener('mousedown', e=>{ e.preventDefault(); playerAttack(); });
-  const potionBtn=document.getElementById('potionBtn');
-  potionBtn.addEventListener('touchstart', e=>{ e.preventDefault(); usePotion(); }, {passive:false});
-  potionBtn.addEventListener('mousedown', e=>{ e.preventDefault(); usePotion(); });
-
-  // ---------- HUD ----------
-  const $=id=>document.getElementById(id);
-  function updateHud(){
-    const p=G.player; if(!p) return;
-    $('floorNum').textContent=G.floor; $('lvlNum').textContent=p.level; $('goldNum').textContent=p.gold;
-    $('hpText').textContent=Math.ceil(p.hp)+'/'+p.maxhp;
-    $('hpFill').style.width=clamp(p.hp/p.maxhp*100,0,100)+'%';
-    $('xpFill').style.width=clamp(p.xp/p.xpNext*100,0,100)+'%';
-    $('xpLabel').textContent='EXP '+p.xp+' / '+p.xpNext;
-    $('potCount').textContent=p.potions;
-    potionBtn.classList.toggle('disabled', p.potions<=0);
-  }
-
-  let toastTimer=null;
-  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
-    clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1600); }
-
-  // ---------- Overlays ----------
-  function showLevelUp(){
-    const p=G.player;
-    $('levelInfo').innerHTML=`Lv.${p.level} になった！<br>最大HP +8 / 攻撃 +2 / 防御 +1<br>HP全回復`;
-    G.state='levelup'; $('levelScreen').style.display='flex';
-  }
-  $('levelBtn').onclick=()=>{ $('levelScreen').style.display='none'; G.state='play'; G.last=performance.now(); requestAnimationFrame(loop); };
-
-  function gameOver(){
-    G.state='over';
-    const p=G.player;
-    $('overStats').innerHTML=`到達: <b>B${G.floor}F</b> / レベル <b>${p.level}</b> / 所持金 <b>${p.gold}</b>`;
-    $('overScreen').style.display='flex';
-  }
-
-  function startGame(){
-    G.floor=1; G.player=newPlayer(); genFloor(1);
-    $('titleScreen').style.display='none'; $('overScreen').style.display='none';
-    updateHud(); G.state='play'; G.last=performance.now(); requestAnimationFrame(loop);
-    toast('B1F へようこそ');
-  }
-  $('startBtn').onclick=startGame;
-  $('retryBtn').onclick=startGame;
-
-  // ---------- Inventory ----------
-  const invPanel=$('invPanel');
-  function openInv(){
-    if(G.state!=='play' && G.state!=='inv') return;
-    G.state='inv'; renderInv(); invPanel.style.display='flex';
-  }
-  function closeInv(){ invPanel.style.display='none'; G.state='play'; G.last=performance.now(); requestAnimationFrame(loop); }
-  $('invBtn').onclick=()=>{ G.state==='inv'?closeInv():openInv(); };
-  $('invClose').onclick=closeInv;
-
-  function renderInv(){
-    const p=G.player;
-    $('statsBox').innerHTML=
-      `❤️ HP <b>${Math.ceil(p.hp)}/${p.maxhp}</b> &nbsp; ⚔️ 攻撃 <b>${totalAtk(p)}</b> &nbsp; 🛡️ 防御 <b>${totalDef(p)}</b><br>`+
-      `⭐ Lv <b>${p.level}</b> &nbsp; 💰 <b>${p.gold}</b> &nbsp; 🧪 回復薬 <b>${p.potions}</b>`;
-    $('eqWpnNm').textContent=p.wpn?p.wpn.name:'なし'; $('eqWpnNm').style.color=p.wpn?p.wpn.rarity.color:'#888';
-    $('eqWpnSt').textContent=p.wpn?p.wpn.label:'';
-    $('eqArmNm').textContent=p.arm?p.arm.name:'なし'; $('eqArmNm').style.color=p.arm?p.arm.rarity.color:'#888';
-    $('eqArmSt').textContent=p.arm?p.arm.label:'';
-    // pending pickups list is handled live; here we just show equipped. (auto-equip on pickup)
-    const list=$('invList'); list.innerHTML='';
-    const note=document.createElement('div'); note.className='emptyNote';
-    note.innerHTML='床のアイテムは拾うと<b>その場で比較</b>され、強ければ自動装備されます。<br>弱い装備は売却され💰になります。';
-    list.appendChild(note);
-  }
-
-  // ---------- Pickups ----------
-  function tryEquip(it){
-    const p=G.player; const cur = it.kind==='wpn'? p.wpn : p.arm;
-    if(!cur || it.val>cur.val){
-      if(cur){ const sell=Math.round(cur.val*2); p.gold+=sell; }
-      if(it.kind==='wpn') p.wpn=it; else p.arm=it;
-      floater(p.x,p.y-p.r-18, it.label, it.rarity.color);
-      toast('装備: '+it.name);
-    } else {
-      const sell=Math.round(it.val*2); p.gold+=sell;
-      floater(p.x,p.y-p.r-18,'売却 +'+sell,'#f1c40f');
+// ---------- machine tick ----------
+function machineTick(dt){
+  for(const k in S.builds){
+    const b=S.builds[k]; const def=BUILD_BY[b.key];
+    if(def.passive) continue;
+    if(b.t===undefined) b.t=0;
+    b.t+=dt;
+    if(b.t<def.interval) continue;
+    if(def.place==='node'){
+      const nd=S.nodes[k]; // miner sits on node tile
+      if(nd && nd.amount>0){
+        const res=NODE[nd.type].res;
+        if(invAmt(res)<cap()){ addInv(res,1); nd.amount--; b.t=0; b.active=true;
+          if(nd.amount<=0) nd.respawnAt=S.time+NODE[nd.type].respawn; }
+        else { b.t=def.interval; b.active=false; }
+      } else { b.t=def.interval; b.active=false; }
+    } else if(def.recipe){
+      const rc=def.recipe;
+      let ok=true; for(const i in rc.in) if(invAmt(i)<rc.in[i]) ok=false;
+      for(const o in rc.out) if(invAmt(o)>=cap()) ok=false;
+      if(ok){ for(const i in rc.in) S.inv[i]-=rc.in[i]; for(const o in rc.out) addInv(o,rc.out[o]); b.t=0; b.active=true; }
+      else { b.t=def.interval; b.active=false; }
     }
   }
+}
+function nodeRespawnTick(){
+  for(const k in S.nodes){ const nd=S.nodes[k];
+    if(nd.amount<=0 && nd.respawnAt!=null && S.time>=nd.respawnAt){ nd.amount=NODE[nd.type].max; nd.respawnAt=null; } }
+}
 
-  // ---------- Main loop ----------
-  function loop(now){
-    if(G.state!=='play'){ return; }
-    let dt=(now-G.last)/1000; G.last=now; if(dt>0.05) dt=0.05;
-    update(dt); render();
-    requestAnimationFrame(loop);
+// ---------- build / place ----------
+function enterPlace(key){
+  const def=BUILD_BY[key];
+  if(!hasCost(def.cost)){ toast('資材が足りません'); return; }
+  G.placeKey=key; closePanel();
+  $('placeName').textContent=def.e+' '+def.name+' を設置';
+  $('placeHint').textContent= def.place==='node' ? '資源ノードをタップ' : '空き地をタップ';
+  $('placeBar').style.display='flex';
+}
+function cancelPlace(){ G.placeKey=null; $('placeBar').style.display='none'; }
+function tryPlaceAt(wx,wy){
+  if(!G.placeKey) return;
+  const def=BUILD_BY[G.placeKey];
+  const tx=wx/TILE|0, ty=wy/TILE|0, k=nodeKey(tx,ty);
+  if(tx<0||ty<0||tx>=WORLD||ty>=WORLD) return;
+  if(S.builds[k]){ toast('すでに何か建っています'); return; }
+  const b=biomeAt(tx,ty);
+  if(def.place==='node'){
+    if(!S.nodes[k]){ toast('資源ノードの上に設置してください'); return; }
+  } else {
+    if(b.t==='water'){ toast('水上には建てられません'); return; }
+    if(S.nodes[k]){ toast('資源ノードの上には建てられません'); return; }
   }
+  if(!hasCost(def.cost)){ toast('資材不足'); cancelPlace(); return; }
+  payCost(def.cost);
+  S.builds[k]={key:G.placeKey, t:0};
+  burst(tx*TILE+TILE/2,ty*TILE+TILE/2,def.color,12);
+  toast(def.name+' を設置');
+  renderRes();
+  if(!hasCost(def.cost)) cancelPlace(); // out of resources -> exit
+}
 
-  function update(dt){
-    const p=G.player;
-    // movement input
-    let mx=joy.dx*joy.mag, my=joy.dy*joy.mag;
-    if(keys['arrowleft']||keys['a']) mx-=1; if(keys['arrowright']||keys['d']) mx+=1;
-    if(keys['arrowup']||keys['w']) my-=1; if(keys['arrowdown']||keys['s']) my+=1;
-    const m=Math.hypot(mx,my);
-    if(m>0.05){
-      const nx=mx/m, ny=my/m; const sp=p.speed*Math.min(m,1)*dt;
-      moveEntity(p, nx*sp, ny*sp);
-      p.facing.x=nx; p.facing.y=ny;
-    }
-    if(p.atkCd>0) p.atkCd-=dt; if(p.atkTimer>0) p.atkTimer-=dt; if(p.hurtCd>0) p.hurtCd-=dt;
+// ---------- crafting ----------
+function doCraft(c){
+  if(c.req && !c.req()){ toast('前提条件を満たしていません'); return; }
+  if(c.crafted && S.crafted[c.key]){ toast('作成済みです'); return; }
+  if(!hasCost(c.cost)){ toast('資材が足りません'); return; }
+  payCost(c.cost); S.crafted[c.key]=true; c.apply();
+  toast(c.name+' 完成！'); renderRes(); buildPanelRender();
+}
 
-    // enemies
-    for(let i=G.enemies.length-1;i>=0;i--){
-      const e=G.enemies[i];
-      if(e.hurtCd>0) e.hurtCd-=dt; if(e.atkCd>0) e.atkCd-=dt; e.wob+=dt*6;
-      if(e.hp<=0){ killEnemy(e,i); continue; }
-      const d=dist(p.x,p.y,e.x,e.y);
-      // knockback
-      if(Math.abs(e.knock.x)>1||Math.abs(e.knock.y)>1){
-        moveEntity(e,e.knock.x*dt,e.knock.y*dt); e.knock.x*=0.82; e.knock.y*=0.82;
-      } else if(d<TILE*7){ // aggro & chase
-        const nx=(p.x-e.x)/(d||1), ny=(p.y-e.y)/(d||1);
-        moveEntity(e, nx*e.spd*dt, ny*e.spd*dt);
-      }
-      if(d < e.r+p.r+2 && e.atkCd<=0){ damagePlayer(e.atk); e.atkCd=0.9; }
-    }
+// ---------- win ----------
+function winGame(){ S.won=true; save();
+  $('winStat').innerHTML=`${S.seed%100000} の世界 / ${Math.floor(S.time/120)+1}日目に発射！`;
+  $('winScreen').style.display='flex'; }
 
-    // drops pickup
-    for(let i=G.drops.length-1;i>=0;i--){
-      const dr=G.drops[i]; dr.bob+=dt*4;
-      if(dist(p.x,p.y,dr.x,dr.y) < p.r+dr.r+6){
-        if(dr.type==='gold'){ p.gold+=dr.amt; floater(dr.x,dr.y,'+'+dr.amt+'💰','#f1c40f'); }
-        else if(dr.type==='potion'){ p.potions++; floater(dr.x,dr.y,'+🧪','#2ecc71'); toast('回復薬を拾った'); }
-        else if(dr.type==='item'){ tryEquip(dr.item); }
-        G.drops.splice(i,1); updateHud();
-      }
-    }
+// ---------- input ----------
+const joyBase=$('joyBase'), joyKnob=$('joyKnob'), J=G.joy;
+function startJoy(t){ J.active=true; J.id=t.identifier; J.bx=t.clientX; J.by=t.clientY; J.dx=0;J.dy=0;J.mag=0;
+  joyBase.style.display='block'; joyKnob.style.display='block';
+  joyBase.style.left=(t.clientX-60)+'px'; joyBase.style.top=(t.clientY-60)+'px';
+  joyKnob.style.left=(t.clientX-27)+'px'; joyKnob.style.top=(t.clientY-27)+'px'; }
+function moveJoy(t){ let dx=t.clientX-J.bx,dy=t.clientY-J.by,m=Math.hypot(dx,dy),mx=48;
+  if(m>mx){dx=dx/m*mx;dy=dy/m*mx;} J.dx=dx/mx; J.dy=dy/mx; J.mag=Math.min(m/mx,1);
+  joyKnob.style.left=(J.bx+dx-27)+'px'; joyKnob.style.top=(J.by+dy-27)+'px'; }
+function endJoy(){ J.active=false;J.id=null;J.dx=0;J.dy=0;J.mag=0; joyBase.style.display='none'; joyKnob.style.display='none'; }
 
-    // stairs
-    if(dist(p.x,p.y,G.stairs.x,G.stairs.y) < p.r+18) nextFloor();
+const taps=new Map();
+cv.addEventListener('touchstart',e=>{ for(const t of e.changedTouches){
+    taps.set(t.identifier,{x:t.clientX,y:t.clientY,t:performance.now(),moved:0});
+    if(t.clientX<VW*0.5 && !J.active && !G.placeKey) startJoy(t);
+  }},{passive:true});
+cv.addEventListener('touchmove',e=>{ for(const t of e.changedTouches){
+    const tp=taps.get(t.identifier); if(tp) tp.moved+=Math.abs(t.clientX-tp.x)+Math.abs(t.clientY-tp.y);
+    if(t.identifier===J.id) moveJoy(t);
+  }},{passive:true});
+cv.addEventListener('touchend',e=>{ for(const t of e.changedTouches){
+    const tp=taps.get(t.identifier); taps.delete(t.identifier);
+    if(t.identifier===J.id){ endJoy(); }
+    else if(tp && (performance.now()-tp.t)<350 && tp.moved<14) handleTap(t.clientX,t.clientY);
+  }},{passive:true});
+cv.addEventListener('touchcancel',e=>{ for(const t of e.changedTouches){ taps.delete(t.identifier); if(t.identifier===J.id) endJoy(); }},{passive:true});
 
-    // particles & floaters
-    for(let i=G.particles.length-1;i>=0;i--){ const pa=G.particles[i]; pa.life-=dt;
-      pa.x+=pa.vx*dt; pa.y+=pa.vy*dt; pa.vx*=0.9; pa.vy*=0.9; if(pa.life<=0) G.particles.splice(i,1); }
-    for(let i=G.floaters.length-1;i>=0;i--){ const f=G.floaters[i]; f.life-=dt; f.y+=f.vy*dt; f.vy*=0.92;
-      if(f.life<=0) G.floaters.splice(i,1); }
+// mouse fallback
+let md=false, mdInfo=null;
+cv.addEventListener('mousedown',e=>{ md=true; mdInfo={x:e.clientX,y:e.clientY,t:performance.now(),moved:0};
+  if(e.clientX<VW*0.5 && !G.placeKey) startJoy({identifier:'m',clientX:e.clientX,clientY:e.clientY}); });
+addEventListener('mousemove',e=>{ if(!md)return; if(mdInfo) mdInfo.moved+=Math.abs(e.movementX)+Math.abs(e.movementY);
+  if(J.id==='m') moveJoy({clientX:e.clientX,clientY:e.clientY}); });
+addEventListener('mouseup',e=>{ if(!md)return; md=false;
+  if(J.id==='m'){ endJoy(); } else if(mdInfo && performance.now()-mdInfo.t<350 && mdInfo.moved<14) handleTap(e.clientX,e.clientY); });
 
-    if(G.screenShake>0) G.screenShake-=dt*40; if(G.screenShake<0) G.screenShake=0;
+function handleTap(sx,sy){
+  const wx=sx+G.cam.x, wy=sy+G.cam.y;
+  if(G.placeKey){ tryPlaceAt(wx,wy); return; }
+  // tap on building -> info
+  const tx=wx/TILE|0, ty=wy/TILE|0, k=nodeKey(tx,ty);
+  if(S.builds[k]){ openInfo(k); }
+}
 
-    // camera
-    G.cam.x += (p.x - VW/2 - G.cam.x)*Math.min(1,dt*8);
-    G.cam.y += (p.y - VH/2 - G.cam.y)*Math.min(1,dt*8);
+// keyboard (desktop)
+addEventListener('keydown',e=>{ G.keys[e.key.toLowerCase()]=true; if(e.key===' '){e.preventDefault();doGather();} });
+addEventListener('keyup',e=>{ G.keys[e.key.toLowerCase()]=false; });
 
-    updateHud();
+$('gatherBtn').addEventListener('touchstart',e=>{e.preventDefault();doGather();},{passive:false});
+$('gatherBtn').addEventListener('mousedown',e=>{e.preventDefault();doGather();});
+$('buildBtn').onclick=openPanel;
+$('placeCancel').onclick=cancelPlace;
+
+// ---------- building info popup ----------
+function openInfo(k){ G.selBuild=k; const b=S.builds[k], def=BUILD_BY[b.key];
+  $('infoTitle').textContent=def.e+' '+def.name;
+  let stat=def.ds;
+  if(def.place==='node'){ const nd=S.nodes[k]; stat= nd? `採掘中: ${RES[NODE[nd.type].res].n} (残${nd.amount})` : '対象ノードなし'; }
+  else if(def.recipe){ stat=def.ds; }
+  $('infoStat').textContent=stat;
+  $('infoPop').style.display='block'; }
+$('infoClose').onclick=()=>{ $('infoPop').style.display='none'; G.selBuild=null; };
+$('infoRemove').onclick=()=>{ const k=G.selBuild; if(!k)return; const b=S.builds[k],def=BUILD_BY[b.key];
+  for(const r in def.cost) addInv(r, Math.floor(def.cost[r]/2));
+  delete S.builds[k]; $('infoPop').style.display='none'; G.selBuild=null; renderRes(); toast('撤去しました'); };
+
+// ---------- build panel ----------
+let curTab='build';
+function openPanel(){ if(!G.run)return; cancelPlace(); buildPanelRender(); $('buildPanel').style.display='flex'; }
+function closePanel(){ $('buildPanel').style.display='none'; }
+$('panelClose').onclick=closePanel;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ curTab=t.dataset.tab;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t)); buildPanelRender(); });
+function costStr(cost){ return Object.keys(cost).map(k=>{ const ok=invAmt(k)>=cost[k];
+  return `<span class="${ok?'':'bad'}">${RES[k].e}${cost[k]}</span>`; }).join(' '); }
+function buildPanelRender(){
+  const list=$('cardList'); list.innerHTML='';
+  if(curTab==='build'){
+    BUILD.forEach(def=>{
+      const cnt=Object.values(S.builds).filter(b=>b.key===def.key).length;
+      const card=document.createElement('div'); card.className='card';
+      card.innerHTML=`<div class="l"><div class="nm">${def.e} ${def.name} ${cnt?`<span style="color:#9c9">×${cnt}</span>`:''}</div>
+        <div class="ds">${def.ds}</div><div class="cost">${costStr(def.cost)}</div></div>`;
+      const btn=document.createElement('button'); btn.textContent='設置';
+      btn.disabled=!hasCost(def.cost); btn.onclick=()=>enterPlace(def.key);
+      card.appendChild(btn); list.appendChild(card);
+    });
+  } else {
+    CRAFT.forEach(c=>{
+      const made=c.crafted&&S.crafted[c.key];
+      const isPick=c.key.indexOf('pick')>=0;
+      const owned= isPick ? (c.key==='stone_pick'?S.tier>=2:S.tier>=3) : made;
+      const card=document.createElement('div'); card.className='card'+(owned?' done':'');
+      card.innerHTML=`<div class="l"><div class="nm">${c.e} ${c.name}</div><div class="ds">${c.ds}</div>
+        <div class="cost">${costStr(c.cost)}</div></div>`;
+      const btn=document.createElement('button');
+      if(owned){ btn.textContent='✔'; btn.disabled=true; }
+      else { btn.textContent='作成'; btn.disabled=!hasCost(c.cost)||(c.req&&!c.req()); btn.onclick=()=>doCraft(c); }
+      card.appendChild(btn); list.appendChild(card);
+    });
   }
+}
 
-  // ---------- Render ----------
-  function render(){
-    const p=G.player;
-    ctx.clearRect(0,0,VW,VH);
-    ctx.save();
-    let sx=0,sy=0; if(G.screenShake>0){ sx=rnd(-G.screenShake,G.screenShake); sy=rnd(-G.screenShake,G.screenShake); }
-    ctx.translate(-Math.round(G.cam.x)+sx, -Math.round(G.cam.y)+sy);
+// ---------- HUD ----------
+function renderRes(){
+  const strip=$('resStrip'); let html='';
+  const c=cap();
+  RES_ORDER.forEach(k=>{ const v=invAmt(k); if(v>0||['wood','stone'].includes(k))
+    html+=`<span class="res">${RES[k].e}<span class="v"> ${v}</span></span>`; });
+  html+=`<span class="res" style="opacity:.7">📦上限 ${c}</span>`;
+  strip.innerHTML=html;
+}
 
-    // visible tile range
-    const x0=Math.max(0,Math.floor(G.cam.x/TILE)-1), y0=Math.max(0,Math.floor(G.cam.y/TILE)-1);
-    const x1=Math.min(G.mw-1,Math.ceil((G.cam.x+VW)/TILE)+1), y1=Math.min(G.mh-1,Math.ceil((G.cam.y+VH)/TILE)+1);
-    for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
-      const v=G.map[G._idx(tx,ty)];
-      const px=tx*TILE, py=ty*TILE;
-      if(v===0){ // wall (only draw if adjacent to floor for perf/look) -> just draw all
-        ctx.fillStyle='#15151f'; ctx.fillRect(px,py,TILE,TILE);
-      } else {
-        // floor checker
-        ctx.fillStyle=((tx+ty)&1)?'#26263a':'#222236'; ctx.fillRect(px,py,TILE,TILE);
-        ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);
-        if(v===2){ // stairs
-          ctx.fillStyle='#3b2a55'; ctx.fillRect(px+4,py+4,TILE-8,TILE-8);
-          ctx.fillStyle='#caa0ff'; ctx.font='24px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.fillText('🔻',px+TILE/2,py+TILE/2+1);
-        }
-      }
-    }
+// ---------- loop ----------
+function loop(now){ if(!G.run) return;
+  let dt=(now-G.last)/1000; G.last=now; if(dt>0.05)dt=0.05;
+  update(dt); render(); requestAnimationFrame(loop); }
 
-    // drops
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    for(const dr of G.drops){
-      const oy=Math.sin(dr.bob)*3;
-      if(dr.type==='gold'){ ctx.font='16px sans-serif'; ctx.fillText('💰',dr.x,dr.y+oy); }
-      else if(dr.type==='potion'){ ctx.font='18px sans-serif'; ctx.fillText('🧪',dr.x,dr.y+oy); }
-      else if(dr.type==='item'){
-        ctx.beginPath(); ctx.arc(dr.x,dr.y+oy,13,0,7); ctx.fillStyle=dr.item.rarity.color+'33'; ctx.fill();
-        ctx.lineWidth=2; ctx.strokeStyle=dr.item.rarity.color; ctx.stroke();
-        ctx.font='16px sans-serif'; ctx.fillText(dr.item.emoji,dr.x,dr.y+oy+1);
-      }
-    }
+function update(dt){
+  S.time+=dt;
+  // move
+  let mx=J.dx*J.mag, my=J.dy*J.mag;
+  if(G.keys['a']||G.keys['arrowleft'])mx-=1; if(G.keys['d']||G.keys['arrowright'])mx+=1;
+  if(G.keys['w']||G.keys['arrowup'])my-=1; if(G.keys['s']||G.keys['arrowdown'])my+=1;
+  const m=Math.hypot(mx,my);
+  const P={x:S.px,y:S.py,r:13};
+  if(m>0.05){ moveEnt(P, mx/m*170*Math.min(m,1)*dt, my/m*170*Math.min(m,1)*dt); S.px=P.x; S.py=P.y; }
+  if(G.gatherCd>0) G.gatherCd-=dt;
+  machineTick(dt); nodeRespawnTick();
+  // effects
+  for(let i=G.particles.length-1;i>=0;i--){ const p=G.particles[i]; p.life-=dt; p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.9;p.vy*=.9; if(p.life<=0)G.particles.splice(i,1); }
+  for(let i=G.floaters.length-1;i>=0;i--){ const f=G.floaters[i]; f.life-=dt; f.y+=f.vy*dt; f.vy*=.93; if(f.life<=0)G.floaters.splice(i,1); }
+  // camera
+  G.cam.x += (S.px-VW/2-G.cam.x)*Math.min(1,dt*8);
+  G.cam.y += (S.py-VH/2-G.cam.y)*Math.min(1,dt*8);
+  // clock
+  const dayLen=120, ph=(S.time%dayLen)/dayLen, day=Math.floor(S.time/dayLen)+1;
+  $('dayLabel').textContent=day+'日目';
+  $('phaseLabel').textContent= ph<0.25?'🌅 朝': ph<0.5?'☀️ 昼': ph<0.7?'🌇 夕': '🌙 夜';
+  // autosave
+  autosaveT+=dt; if(autosaveT>5){ autosaveT=0; save(); }
+}
 
-    // enemies
-    for(const e of G.enemies){
-      const oy=Math.sin(e.wob)*2;
-      ctx.beginPath(); ctx.ellipse(e.x,e.y+e.r-2,e.r*0.8,e.r*0.4,0,0,7); ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fill();
-      ctx.beginPath(); ctx.arc(e.x,e.y+oy,e.r,0,7);
-      ctx.fillStyle= e.hurtCd>0? '#fff' : e.type.color; ctx.fill();
-      ctx.font=(e.r+8)+'px sans-serif'; ctx.fillText(e.type.emoji,e.x,e.y+oy);
-      // hp bar
-      if(e.hp<e.maxhp){
-        const bw=e.r*2; ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(e.x-bw/2,e.y-e.r-9,bw,4);
-        ctx.fillStyle='#e74c3c'; ctx.fillRect(e.x-bw/2,e.y-e.r-9,bw*clamp(e.hp/e.maxhp,0,1),4);
-      }
-    }
-
-    // player
-    {
-      const flash = p.hurtCd>0 && Math.floor(p.hurtCd*20)%2===0;
-      ctx.beginPath(); ctx.ellipse(p.x,p.y+p.r-2,p.r*0.8,p.r*0.4,0,0,7); ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fill();
-      // attack swing arc
-      if(p.atkTimer>0){
-        const ang=Math.atan2(p.facing.y,p.facing.x);
-        const t=1-(p.atkTimer/0.22);
-        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(ang);
-        ctx.beginPath(); const reach=TILE*1.15+(p.wpn?6:0);
-        ctx.arc(0,0,reach,-0.9+t*1.8-0.6,-0.9+t*1.8+0.2);
-        ctx.lineWidth=8; ctx.strokeStyle='rgba(255,255,255,'+(0.7*p.atkTimer/0.22+0.2)+')'; ctx.stroke();
-        ctx.restore();
-      }
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7);
-      ctx.fillStyle= flash? '#fff' : '#4aa3ff'; ctx.fill();
-      ctx.lineWidth=2; ctx.strokeStyle='#dff'; ctx.stroke();
-      ctx.font='20px sans-serif'; ctx.fillText('🧙',p.x,p.y);
-      // facing indicator
-      ctx.beginPath(); ctx.arc(p.x+p.facing.x*p.r, p.y+p.facing.y*p.r, 3,0,7); ctx.fillStyle='#fff'; ctx.fill();
-    }
-
-    // particles
-    for(const pa of G.particles){ ctx.globalAlpha=clamp(pa.life*2,0,1); ctx.fillStyle=pa.color;
-      ctx.beginPath(); ctx.arc(pa.x,pa.y,pa.r,0,7); ctx.fill(); }
-    ctx.globalAlpha=1;
-
-    // floaters
-    ctx.font='bold 15px sans-serif';
-    for(const f of G.floaters){ ctx.globalAlpha=clamp(f.life,0,1);
-      ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillText(f.text,f.x+1,f.y+1);
-      ctx.fillStyle=f.color; ctx.fillText(f.text,f.x,f.y); }
-    ctx.globalAlpha=1;
-
-    ctx.restore();
+// ---------- render ----------
+const BIO_COL={ water:'#274b6e', sand:'#cbb37a', grass:'#4e7a3a', forest:'#3d6230', rock:'#7c7f86' };
+function render(){
+  ctx.clearRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(-Math.round(G.cam.x), -Math.round(G.cam.y));
+  const x0=Math.max(0,(G.cam.x/TILE|0)-1), y0=Math.max(0,(G.cam.y/TILE|0)-1);
+  const x1=Math.min(WORLD-1,((G.cam.x+VW)/TILE|0)+1), y1=Math.min(WORLD-1,((G.cam.y+VH)/TILE|0)+1);
+  // tiles
+  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
+    const b=biomeAt(tx,ty); const px=tx*TILE,py=ty*TILE;
+    let col=BIO_COL[b.t];
+    // subtle shade by elevation
+    const sh=(b.e-0.5)*22|0;
+    ctx.fillStyle=shade(col,sh); ctx.fillRect(px,py,TILE+1,TILE+1);
+    if(b.t==='water'){ ctx.fillStyle='rgba(255,255,255,'+(0.04+0.03*Math.sin((tx+ty)*0.7+S.time))+')'; ctx.fillRect(px,py,TILE,4); }
+    else { // grass dots
+      const d=hash2(tx,ty,S.seed+3); if(d<0.5){ ctx.fillStyle='rgba(0,0,0,.07)'; ctx.fillRect(px+(d*TILE|0)%TILE,py+((d*977|0)%TILE),3,3);} }
   }
+  // nodes
+  for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
+    const nd=S.nodes[nodeKey(tx,ty)]; if(!nd||nd.amount<=0)continue;
+    drawNode(tx,ty,nd);
+  }
+  // buildings
+  for(const k in S.builds){ const [tx,ty]=k.split(',').map(Number);
+    if(tx<x0-1||tx>x1+1||ty<y0-1||ty>y1+1)continue; drawBuild(tx,ty,S.builds[k]); }
+  // placement ghost
+  if(G.placeKey){ const def=BUILD_BY[G.placeKey];
+    const tx=((S.px)/TILE|0), ty=((S.py)/TILE|0); // hint near player (purely visual ring)
+  }
+  // player
+  drawPlayer();
+  // gather range ring on nearest
+  const nn=nearestNode();
+  if(nn){ ctx.strokeStyle='rgba(255,230,120,.8)'; ctx.lineWidth=2; ctx.beginPath();
+    ctx.arc(nn.cx,nn.cy,TILE*0.5,0,6.3); ctx.stroke(); }
+  // particles & floaters
+  for(const p of G.particles){ ctx.globalAlpha=clamp(p.life*2,0,1); ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.3); ctx.fill(); }
+  ctx.globalAlpha=1; ctx.font='bold 14px sans-serif'; ctx.textAlign='center';
+  for(const f of G.floaters){ ctx.globalAlpha=clamp(f.life,0,1);
+    ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillText(f.txt,f.x+1,f.y+1); ctx.fillStyle=f.c; ctx.fillText(f.txt,f.x,f.y); }
+  ctx.globalAlpha=1;
+  ctx.restore();
+  // night overlay
+  const ph=(S.time%120)/120; let dark=0;
+  if(ph>0.5) dark=Math.min(0.5,(ph-0.5)/0.25*0.5); if(ph>0.75) dark=0.5-((ph-0.75)/0.25)*0.5;
+  if(ph<0.2) dark=0.5-(ph/0.2)*0.5;
+  if(dark>0.01){ ctx.fillStyle='rgba(10,16,40,'+dark+')'; ctx.fillRect(0,0,VW,VH); }
+}
+function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
+  r=clamp(r,0,255);g=clamp(g,0,255);b=clamp(b,0,255); return 'rgb('+r+','+g+','+b+')'; }
+function drawNode(tx,ty,nd){
+  const cx=tx*TILE+TILE/2, cy=ty*TILE+TILE/2, def=NODE[nd.type];
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(cx,cy+12,15,6,0,0,6.3); ctx.fill();
+  if(def.draw==='tree'){
+    ctx.fillStyle='#6b4a25'; ctx.fillRect(cx-3,cy+2,6,12);
+    ctx.fillStyle='#2f5d22'; ctx.beginPath(); ctx.arc(cx,cy-4,15,0,6.3); ctx.fill();
+    ctx.fillStyle='#3c7a2c'; ctx.beginPath(); ctx.arc(cx-5,cy-1,9,0,6.3); ctx.arc(cx+6,cy-2,8,0,6.3); ctx.fill();
+  } else if(def.draw==='rock'){
+    ctx.fillStyle='#8d949c'; ctx.beginPath(); ctx.moveTo(cx-13,cy+10); ctx.lineTo(cx-6,cy-9); ctx.lineTo(cx+4,cy-11);
+    ctx.lineTo(cx+13,cy+2); ctx.lineTo(cx+9,cy+11); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#aeb4bb'; ctx.beginPath(); ctx.moveTo(cx-6,cy-9); ctx.lineTo(cx+4,cy-11); ctx.lineTo(cx,cy+1); ctx.closePath(); ctx.fill();
+  } else { // ore
+    ctx.fillStyle='#777'; ctx.beginPath(); ctx.moveTo(cx-13,cy+10); ctx.lineTo(cx-7,cy-8); ctx.lineTo(cx+5,cy-10);
+    ctx.lineTo(cx+13,cy+3); ctx.lineTo(cx+8,cy+11); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=def.color; for(let i=0;i<5;i++){ const a=i*1.3; ctx.beginPath();
+      ctx.arc(cx+Math.cos(a)*6, cy+Math.sin(a)*5-1, 3.2,0,6.3); ctx.fill(); }
+    ctx.fillStyle=def.spot; ctx.beginPath(); ctx.arc(cx-2,cy-2,2,0,6.3); ctx.arc(cx+4,cy+3,1.6,0,6.3); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawBuild(tx,ty,b){
+  const def=BUILD_BY[b.key], px=tx*TILE,py=ty*TILE, cx=px+TILE/2,cy=py+TILE/2;
+  ctx.fillStyle='rgba(0,0,0,.28)'; ctx.fillRect(px+4,py+TILE-6,TILE-8,6);
+  ctx.fillStyle=def.color; ctx.strokeStyle='#0006'; ctx.lineWidth=2;
+  roundRect(px+4,py+4,TILE-8,TILE-8,7); ctx.fill(); ctx.stroke();
+  ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(def.e,cx,cy+1);
+  // active indicator
+  if(b.active){ ctx.fillStyle='#7fff7f'; ctx.beginPath(); ctx.arc(px+TILE-9,py+9,3.5,0,6.3); ctx.fill(); }
+  else if(!def.passive){ ctx.fillStyle='#e85'; ctx.beginPath(); ctx.arc(px+TILE-9,py+9,3.5,0,6.3); ctx.fill(); }
+  ctx.textBaseline='alphabetic';
+}
+function drawPlayer(){
+  const x=S.px,y=S.py;
+  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(x,y+11,11,5,0,0,6.3); ctx.fill();
+  ctx.fillStyle='#e8c39e'; // body base
+  ctx.beginPath(); ctx.arc(x,y,12,0,6.3); ctx.fillStyle='#3b78c2'; ctx.fill();
+  ctx.lineWidth=2; ctx.strokeStyle='#cfe3ff'; ctx.stroke();
+  ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧑‍🌾',x,y); ctx.textBaseline='alphabetic';
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
-  // start on title
+// ---------- start / boot ----------
+function beginRun(){ G.run=true; G.last=performance.now(); G.cam.x=S.px-VW/2; G.cam.y=S.py-VH/2;
+  renderRes(); $('titleScreen').style.display='none'; requestAnimationFrame(loop); }
+function startNew(){ S=freshState((Math.random()*1e9)|0); genWorld(); save(); beginRun(); toast('新しい世界へようこそ'); }
+$('startBtn').onclick=startNew;
+$('continueBtn').onclick=()=>{ const s=load(); if(s){ S=s; if(!S.crafted)S.crafted={}; beginRun(); } else startNew(); };
+$('winContinue').onclick=()=>{ $('winScreen').style.display='none'; };
+$('winReset').onclick=()=>{ $('winScreen').style.display='none'; startNew(); };
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && G.run) save(); });
+
+// title boot
+(function boot(){ const s=load(); if(s){ $('continueBtn').style.display='inline-block'; } })();
 })();
 </script>
 </body>
